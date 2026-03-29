@@ -30,7 +30,8 @@ void temp_humi_monitor(void *pvParameters){
         //Update global variables for temperature and humidity
         glob_temperature = temperature;
         glob_humidity = humidity;
-
+        
+        xSemaphoreGive(xTempSemaphore);
         // Print the results
         
         Serial.print("Humidity: ");
