@@ -53,7 +53,8 @@ void Save_info_File(String wifi_ssid, String wifi_pass, String CORE_IOT_TOKEN, S
   }
   else
   {
-    Serial.println('Unable to save the configuration.');
+    // Sửa thành:
+  Serial.println("Unable to save the configuration.");
   }
   ESP.restart();
 };
