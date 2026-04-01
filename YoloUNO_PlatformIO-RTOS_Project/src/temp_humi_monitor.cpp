@@ -36,9 +36,7 @@ void temp_humi_monitor(void *pvParameters){
             currentTempState = 2; // Critical
         }
 
-        // ==============================================================
-        // PHẦN 2: LƯU TRỮ AN TOÀN (Loại bỏ biến toàn cục bằng Mutex)
-        // ==============================================================
+        
         if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
             context->temperature = temperature;
             context->humidity = humidity;
