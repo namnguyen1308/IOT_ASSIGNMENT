@@ -26,8 +26,6 @@ void temp_humi_monitor(void *pvParameters){
             vTaskDelay(pdMS_TO_TICKS(5000));
             continue;
         }
-
-<<<<<<< HEAD
         uint8_t currentTempState = 0;
         if (temperature < 30.0) {
             currentTempState = 0; // Normal
@@ -37,9 +35,7 @@ void temp_humi_monitor(void *pvParameters){
             currentTempState = 2; // Critical
         }
 
-        
-=======
->>>>>>> b786d70287dc5476511f41be79ffb6d41d1c41b8
+
         if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
             context->temperature = temperature;
             context->humidity = humidity;
@@ -63,11 +59,6 @@ void temp_humi_monitor(void *pvParameters){
         // include the data in struct 
         xSemaphoreGive(context->semTempUpdate); 
 
-<<<<<<< HEAD
-        // In ra Serial
-=======
-        // Print the results
->>>>>>> b786d70287dc5476511f41be79ffb6d41d1c41b8
         Serial.print("Humidity: ");
         Serial.print(humidity);
         Serial.print("%  Temperature: ");
