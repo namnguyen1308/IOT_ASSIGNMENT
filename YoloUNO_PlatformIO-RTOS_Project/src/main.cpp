@@ -19,6 +19,10 @@ void setup()
   Serial.begin(115200);
   check_info_File(0);
 
+<<<<<<< HEAD
+=======
+  // 1. Cấp phát vùng nhớ động cho struct dùng chung
+>>>>>>> b786d70287dc5476511f41be79ffb6d41d1c41b8
   SensorContext_t *sensorContext = (SensorContext_t *)pvPortMalloc(sizeof(SensorContext_t));
 
   if (sensorContext != NULL) {
