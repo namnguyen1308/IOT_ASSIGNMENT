@@ -1,5 +1,5 @@
 #include "temp_humi_monitor.h"
-#include "global.h" // Chứa định nghĩa SensorContext_t mà chúng ta đã thống nhất
+#include "global.h" 
 
 DHT20 dht20;
 LiquidCrystal_I2C lcd(33, 16, 2);
@@ -18,53 +18,56 @@ void temp_humi_monitor(void *pvParameters){
     while (1){
         dht20.read();
         
-        // Reading temperature in Celsius
         float temperature = dht20.getTemperature();
-        // Reading humidity
         float humidity = dht20.getHumidity();
 
-        // Check if any reads failed and exit early
         if (isnan(temperature) || isnan(humidity)) {
             Serial.println("Failed to read from DHT sensor!");
             vTaskDelay(pdMS_TO_TICKS(5000));
             continue;
         }
 
+        uint8_t currentTempState = 0;
+        if (temperature < 30.0) {
+            currentTempState = 0; // Normal
+        } else if (temperature >= 30.0 && temperature < 35.0) {
+            currentTempState = 1; // Warning
+        } else {
+            currentTempState = 2; // Critical
+        }
+
+        // ==============================================================
+        // PHẦN 2: LƯU TRỮ AN TOÀN (Loại bỏ biến toàn cục bằng Mutex)
+        // ==============================================================
         if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
             context->temperature = temperature;
             context->humidity = humidity;
+            context->tempState = currentTempState; 
             xSemaphoreGive(context->dataMutex);
         }
 
-  
+        // LCD shows
+        
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("T:"); lcd.print(temperature, 1); lcd.print("C ");
         lcd.print("H:"); lcd.print(humidity, 1); lcd.print("%");
-
+        
         lcd.setCursor(0, 1);
+        if (currentTempState == 0) lcd.print("State: NORMAL");
+        else if (currentTempState == 1) lcd.print("State: WARNING");
+        else lcd.print("State: CRITICAL");
 
-       //
-        if (temperature < 30.0) {
-            lcd.print("State: NORMAL");
-            xSemaphoreGive(context->semTempNormal);
-        } 
-        else if (temperature >= 30.0 && temperature < 35.0) {
-            lcd.print("State: WARNING");
-            xSemaphoreGive(context->semTempWarning);
-        } 
-        else {
-            lcd.print("State: CRITICAL");
-            xSemaphoreGive(context->semTempCritical);
-        }
+   
+        // include the data in struct 
+        xSemaphoreGive(context->semTempUpdate); 
 
-        // Print the results
+        // In ra Serial
         Serial.print("Humidity: ");
         Serial.print(humidity);
         Serial.print("%  Temperature: ");
         Serial.print(temperature);
         Serial.println("°C");
-        
         
         vTaskDelay(pdMS_TO_TICKS(5000));
     }

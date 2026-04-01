@@ -9,17 +9,16 @@
 typedef struct {
     float temperature;
     float humidity;
-    SemaphoreHandle_t dataMutex;     // Mutex for data protecting
     
-    // Semaphores for Task 1 
-    SemaphoreHandle_t semTempNormal;
-    SemaphoreHandle_t semTempWarning;
-    SemaphoreHandle_t semTempCritical;
-
-    // Semaphores for Task 2 
-    SemaphoreHandle_t semHumiLow;
-    SemaphoreHandle_t semHumiOptimal;
-    SemaphoreHandle_t semHumiHigh;
+    
+    uint8_t tempState; 
+    
+    SemaphoreHandle_t dataMutex;     // Mutex for protecting data 
+    SemaphoreHandle_t semTempUpdate; // Semaphore for Task 1
+    
+    // semaphore for Task 2 
+    uint8_t humiState;
+    SemaphoreHandle_t semHumiUpdate; 
 } SensorContext_t;
 
 extern String WIFI_SSID;
