@@ -28,17 +28,17 @@ void setup()
       sensorContext->humidity = 0.0;
       sensorContext->tempState = 0; 
       
-      // Khởi tạo thêm cho Đất (nếu bạn dùng code nâng cấp)
+      
       //sensorContext->soilMoisture = 0;
       //sensorContext->soilState = 1; 
       
-      // Tạo Mutex và các Semaphore
+    
       sensorContext->dataMutex = xSemaphoreCreateMutex();
       sensorContext->semTempUpdate = xSemaphoreCreateBinary();
       sensorContext->semHumiUpdate = xSemaphoreCreateBinary();
       //sensorContext->semSoilUpdate = xSemaphoreCreateBinary();
 
-      // Khởi chạy các Task và truyền struct vào
+      
       xTaskCreate(led_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL); 
       xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void *)sensorContext, 2, NULL); 
   }
