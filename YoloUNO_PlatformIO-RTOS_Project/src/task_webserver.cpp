@@ -1,58 +1,82 @@
 #include "task_webserver.h"
+#include "global.h"
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 bool webserver_isrunning = false;
-bool led1_state = false;
-bool led2_state = false;
 
-// GPIO pins for controlled devices (adjust as needed)
-#define DEVICE1_GPIO 2  // LED1 or other device
-#define DEVICE2_GPIO 4  // LED2 or other device
+// Track device states
+struct RelayDevice {
+    int id;
+    String name;
+    int gpio;
+    bool state;
+};
 
-void Webserver_sendata(String data) {
-    if (ws.count() > 0) {
-        ws.textAll(data);
-        Serial.println("📤 WebSocket data sent: " + data);
-    } else {
-        Serial.println("⚠️ No WebSocket clients connected");
+std::vector<RelayDevice> relayDevices;
+int nextRelayId = 1;
+
+// Default relay configuration (can be loaded from storage)
+void initDefaultRelays() {
+    if (relayDevices.empty()) {
+        relayDevices.push_back({nextRelayId++, "Relay 1", 2, false});
+        relayDevices.push_back({nextRelayId++, "Relay 2", 4, false});
+        relayDevices.push_back({nextRelayId++, "Relay 3", 5, false});
+        relayDevices.push_back({nextRelayId++, "Relay 4", 18, false});
     }
 }
 
-// Send sensor data to all connected WebSocket clients
+// Control a relay by GPIO
+void controlRelay(int gpio, bool turnOn) {
+    pinMode(gpio, OUTPUT);
+    digitalWrite(gpio, turnOn ? HIGH : LOW);
+    Serial.printf("🔌 GPIO %d turned %s\n", gpio, turnOn ? "ON" : "OFF");
+}
+
+// Send current sensor data to all connected clients
 void Webserver_send_sensor_data(float temperature, float humidity) {
-    StaticJsonDocument<256> doc;
-    doc["type"] = "sensor_data";
-    doc["temperature"] = temperature;
-    doc["humidity"] = humidity;
-    doc["led1"] = led1_state ? "ON" : "OFF";
-    doc["led2"] = led2_state ? "ON" : "OFF";
+    if (ws.count() > 0) {
+        StaticJsonDocument<256> doc;
+        doc["type"] = "sensor_update";
+        doc["temperature"] = temperature;
+        doc["humidity"] = humidity;
+        
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+    }
+}
+
+// Send all relay states to a specific client (or all)
+void Webserver_send_relay_states(int clientId = -1) {
+    StaticJsonDocument<1024> doc;
+    doc["type"] = "relay_list";
+    
+    JsonArray relays = doc.createNestedArray("relays");
+    for (const auto& relay : relayDevices) {
+        JsonObject obj = relays.createNestedObject();
+        obj["id"] = relay.id;
+        obj["name"] = relay.name;
+        obj["gpio"] = relay.gpio;
+        obj["state"] = relay.state;
+    }
     
     String jsonString;
     serializeJson(doc, jsonString);
-    Webserver_sendata(jsonString);
-}
-
-// Control device based on GPIO and status
-void control_device(int gpio, bool turn_on) {
-    pinMode(gpio, OUTPUT);
-    digitalWrite(gpio, turn_on ? HIGH : LOW);
     
-    // Update state tracking
-    if (gpio == DEVICE1_GPIO) {
-        led1_state = turn_on;
-        Serial.printf("🔆 Device 1 (GPIO %d) turned %s\n", gpio, turn_on ? "ON" : "OFF");
-    } else if (gpio == DEVICE2_GPIO) {
-        led2_state = turn_on;
-        Serial.printf("🔆 Device 2 (GPIO %d) turned %s\n", gpio, turn_on ? "ON" : "OFF");
+    if (clientId == -1) {
+        ws.textAll(jsonString);
+    } else {
+        ws.text(clientId, jsonString);
     }
 }
 
+// Handle WebSocket messages from frontend
 void handleWebSocketMessage(String message) {
-    Serial.println("Received WebSocket message: " + message);
+    Serial.println("📨 Received: " + message);
     
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<1024> doc;
     DeserializationError error = deserializeJson(doc, message);
     
     if (error) {
@@ -63,33 +87,95 @@ void handleWebSocketMessage(String message) {
     String page = doc["page"] | "";
     JsonObject value = doc["value"];
     
+    // Handle device control from "Thiết bị" page
     if (page == "device") {
-        // Handle device control
-        if (!value.containsKey("gpio") || !value.containsKey("status")) {
-            Serial.println("⚠️ JSON missing gpio or status field");
-            return;
+        if (value.containsKey("name") && value.containsKey("status") && value.containsKey("gpio")) {
+            String name = value["name"].as<String>();
+            String status = value["status"].as<String>();
+            int gpio = value["gpio"];
+            bool turnOn = status.equalsIgnoreCase("ON");
+            
+            // Find and update relay state
+            for (auto& relay : relayDevices) {
+                if (relay.name == name && relay.gpio == gpio) {
+                    relay.state = turnOn;
+                    controlRelay(gpio, turnOn);
+                    break;
+                }
+            }
+            
+            // Send confirmation back
+            StaticJsonDocument<256> response;
+            response["type"] = "device_response";
+            response["success"] = true;
+            response["gpio"] = gpio;
+            response["status"] = turnOn ? "ON" : "OFF";
+            
+            String responseStr;
+            serializeJson(response, responseStr);
+            ws.textAll(responseStr);
         }
-        
-        int gpio = value["gpio"];
-        String status = value["status"].as<String>();
-        bool turn_on = status.equalsIgnoreCase("ON");
-        
-        Serial.printf("⚙️ Controlling GPIO %d → %s\n", gpio, turn_on ? "ON" : "OFF");
-        control_device(gpio, turn_on);
-        
-        // Send confirmation back
-        StaticJsonDocument<256> response;
-        response["type"] = "device_response";
-        response["gpio"] = gpio;
-        response["status"] = turn_on ? "ON" : "OFF";
-        response["success"] = true;
-        
-        String responseStr;
-        serializeJson(response, responseStr);
-        Webserver_sendata(responseStr);
-        
-    } else if (page == "setting") {
-        // Handle WiFi and CoreIOT configuration
+    }
+    // Handle adding new relay
+    else if (page == "add_relay") {
+        if (value.containsKey("name") && value.containsKey("gpio")) {
+            String name = value["name"].as<String>();
+            int gpio = value["gpio"];
+            
+            // Check if GPIO already in use
+            bool gpioInUse = false;
+            for (const auto& relay : relayDevices) {
+                if (relay.gpio == gpio) {
+                    gpioInUse = true;
+                    break;
+                }
+            }
+            
+            if (!gpioInUse) {
+                relayDevices.push_back({nextRelayId++, name, gpio, false});
+                controlRelay(gpio, false); // Initialize to OFF
+                Webserver_send_relay_states(); // Broadcast updated list
+                
+                StaticJsonDocument<256> response;
+                response["type"] = "add_relay_response";
+                response["success"] = true;
+                response["message"] = "Relay added successfully";
+                String responseStr;
+                serializeJson(response, responseStr);
+                ws.textAll(responseStr);
+            } else {
+                StaticJsonDocument<256> response;
+                response["type"] = "add_relay_response";
+                response["success"] = false;
+                response["message"] = "GPIO already in use";
+                String responseStr;
+                serializeJson(response, responseStr);
+                ws.textAll(responseStr);
+            }
+        }
+    }
+    // Handle deleting relay
+    else if (page == "delete_relay") {
+        if (value.containsKey("id")) {
+            int id = value["id"];
+            auto it = std::find_if(relayDevices.begin(), relayDevices.end(), 
+                [id](const RelayDevice& r) { return r.id == id; });
+            
+            if (it != relayDevices.end()) {
+                relayDevices.erase(it);
+                Webserver_send_relay_states(); // Broadcast updated list
+                
+                StaticJsonDocument<256> response;
+                response["type"] = "delete_relay_response";
+                response["success"] = true;
+                String responseStr;
+                serializeJson(response, responseStr);
+                ws.textAll(responseStr);
+            }
+        }
+    }
+    // Handle settings configuration (WiFi + CoreIOT)
+    else if (page == "setting") {
         String WIFI_SSID = value["ssid"].as<String>();
         String WIFI_PASS = value["password"].as<String>();
         String CORE_IOT_TOKEN = value["token"].as<String>();
@@ -107,27 +193,30 @@ void handleWebSocketMessage(String message) {
         Save_info_File(WIFI_SSID, WIFI_PASS, CORE_IOT_TOKEN, CORE_IOT_SERVER, CORE_IOT_PORT);
         
         // Send success response
-        String msg = "{\"status\":\"ok\",\"page\":\"setting_saved\",\"message\":\"Configuration saved. Device will restart.\"}";
-        ws.textAll(msg);
+        StaticJsonDocument<256> response;
+        response["status"] = "ok";
+        response["page"] = "setting_saved";
+        response["message"] = "Configuration saved. Device will restart.";
+        
+        String responseStr;
+        serializeJson(response, responseStr);
+        ws.textAll(responseStr);
+        
+        // Delay restart to allow response to be sent
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        ESP.restart();
     }
 }
 
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-        Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+        Serial.printf("🔌 WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
         
-        // Send initial device states to new client
-        StaticJsonDocument<256> initMsg;
-        initMsg["type"] = "init";
-        initMsg["led1"] = led1_state ? "ON" : "OFF";
-        initMsg["led2"] = led2_state ? "ON" : "OFF";
-        
-        String initStr;
-        serializeJson(initMsg, initStr);
-        client->text(initStr);
+        // Send current relay states to the new client
+        Webserver_send_relay_states(client->id());
         
     } else if (type == WS_EVT_DISCONNECT) {
-        Serial.printf("WebSocket client #%u disconnected\n", client->id());
+        Serial.printf("🔌 WebSocket client #%u disconnected\n", client->id());
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo *)arg;
         
@@ -148,18 +237,18 @@ void connectWebSocket() {
         request->send(LittleFS, "/index.html", "text/html");
     });
     
-    server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(LittleFS, "/script.js", "application/javascript");
-    });
-    
     server.on("/styles.css", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(LittleFS, "/styles.css", "text/css");
+    });
+    
+    server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(LittleFS, "/script.js", "application/javascript");
     });
     
     server.begin();
     ElegantOTA.begin(&server);
     webserver_isrunning = true;
-    Serial.println("🌐 Web server started in AP mode");
+    Serial.println("🌐 Web server started");
     Serial.println("📡 Access Point IP: " + WiFi.softAPIP().toString());
 }
 
@@ -173,6 +262,7 @@ void Webserver_stop() {
 void Webserver_reconnect() {
     if (!webserver_isrunning) {
         connectWebSocket();
+        initDefaultRelays();
     }
     ElegantOTA.loop();
 }
