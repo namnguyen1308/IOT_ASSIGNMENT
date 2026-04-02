@@ -19,24 +19,28 @@ void setup()
   Serial.begin(115200);
   check_info_File(0);
 
-
-
+ 
   SensorContext_t *sensorContext = (SensorContext_t *)pvPortMalloc(sizeof(SensorContext_t));
 
+  // Sau khi khai báo xong ở trên thì mới có thể kiểm tra NULL ở dưới
   if (sensorContext != NULL) {
       sensorContext->temperature = 0.0;
       sensorContext->humidity = 0.0;
       sensorContext->tempState = 0; 
       
-      sensorContext->dataMutex = xSemaphoreCreateMutex();
+      // Khởi tạo thêm cho Đất (nếu bạn dùng code nâng cấp)
+      //sensorContext->soilMoisture = 0;
+      //sensorContext->soilState = 1; 
       
+      // Tạo Mutex và các Semaphore
+      sensorContext->dataMutex = xSemaphoreCreateMutex();
       sensorContext->semTempUpdate = xSemaphoreCreateBinary();
       sensorContext->semHumiUpdate = xSemaphoreCreateBinary();
+      //sensorContext->semSoilUpdate = xSemaphoreCreateBinary();
 
-     
-      //xTaskCreate(led_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL); // Task 1      
-      // xTaskCreate(neo_blinky, "Task NEO Blink", 2048, (void *)sensorContext, 2, NULL); // Task 2
-      xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void *)sensorContext, 2, NULL); // Task 3
+      // Khởi chạy các Task và truyền struct vào
+      xTaskCreate(led_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL); 
+      xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void *)sensorContext, 2, NULL); 
   }
   else {
       Serial.println("Error: Không thể cấp phát bộ nhớ cho SensorContext!");
@@ -44,7 +48,6 @@ void setup()
 
   // xTaskCreate(main_server_task, "Task Main Server" ,8192  ,NULL  ,2 , NULL);
   // xTaskCreate( tiny_ml_task, "Tiny ML Task" ,2048  ,NULL  ,2 , NULL);
-  
   // xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,(void *)sensorContext  ,2 , NULL);
   // xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
 }
