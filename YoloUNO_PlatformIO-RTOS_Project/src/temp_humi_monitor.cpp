@@ -26,13 +26,13 @@ void temp_humi_monitor(void *pvParameters){
             vTaskDelay(pdMS_TO_TICKS(5000));
             continue;
         }
-        uint8_t currentTempState = 0;
+        SensorState_t currentTempState = STATE_NOMAL;
         if (temperature < 30.0) {
-            currentTempState = 0; // Normal
+            currentTempState = STATE_NOMAL; // Normal
         } else if (temperature >= 30.0 && temperature < 35.0) {
-            currentTempState = 1; // Warning
+            currentTempState = STATE_WARNING; // Warning
         } else {
-            currentTempState = 2; // Critical
+            currentTempState = STATE_CRITIAL; // Critical
         }
 
 

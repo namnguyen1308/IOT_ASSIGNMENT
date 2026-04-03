@@ -6,12 +6,19 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
+typedef enum {
+    STATE_NOMAL = 0,
+    STATE_WARNING,
+    STATE_CRITIAL,
+    STATE_ERROR
+} SensorState_t;
+
 typedef struct {
     float temperature;
     float humidity;
     
     
-    uint8_t tempState; 
+    SensorState_t tempState; 
     
     SemaphoreHandle_t dataMutex;     // Mutex for protecting data 
     SemaphoreHandle_t semTempUpdate; // Semaphore for Task 1
