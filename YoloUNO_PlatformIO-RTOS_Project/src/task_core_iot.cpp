@@ -118,3 +118,45 @@ void CORE_IOT_reconnect()
         tb.loop();
     }
 }
+
+void coreiot_task(void *pvParameters)
+{
+    // Lấy context chứa Mutex và dữ liệu từ Task 3
+    SensorContext_t *context = (SensorContext_t *)pvParameters;
+
+    while (1)
+    {
+        // Đảm bảo thiết bị đã kết nối WiFi (STA mode)
+        if (WiFi.status() == WL_CONNECTED) 
+        {
+            // 1. Duy trì kết nối MQTT với CoreIOT
+            CORE_IOT_reconnect();
+
+            if (tb.connected()) 
+            {
+                float currentTemp = 0.0;
+                float currentHumi = 0.0;
+
+                // 2. Đọc dữ liệu an toàn qua Mutex
+                if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
+                    currentTemp = context->temperature;
+                    currentHumi = context->humidity;
+                    xSemaphoreGive(context->dataMutex);
+                }
+
+                // 3. Publish dữ liệu lên server
+                CORE_IOT_sendata("telemetry", "temperature", String(currentTemp, 1));
+                CORE_IOT_sendata("telemetry", "humidity", String(currentHumi, 1));
+                
+                Serial.printf("Published - Temp: %.1fC, Humi: %.1f%%\n", currentTemp, currentHumi);
+            }
+        }
+        else 
+        {
+            Serial.println("WiFi not connected. Waiting to publish...");
+        }
+
+        // Chờ 10 giây trước khi gửi tiếp (tránh spam server)
+        vTaskDelay(pdMS_TO_TICKS(telemetrySendInterval));
+    }
+}

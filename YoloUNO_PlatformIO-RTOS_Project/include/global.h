@@ -6,8 +6,20 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
-extern float glob_temperature;
-extern float glob_humidity;
+typedef struct {
+    float temperature;
+    float humidity;
+    
+    
+    uint8_t tempState; 
+    
+    SemaphoreHandle_t dataMutex;     // Mutex for protecting data 
+    SemaphoreHandle_t semTempUpdate; // Semaphore for Task 1
+    
+    // semaphore for Task 2 
+    uint8_t humiState;
+    SemaphoreHandle_t semHumiUpdate; 
+} SensorContext_t;
 
 extern String WIFI_SSID;
 extern String WIFI_PASS;
@@ -17,4 +29,6 @@ extern String CORE_IOT_PORT;
 
 extern boolean isWifiConnected;
 extern SemaphoreHandle_t xBinarySemaphoreInternet;
+
+extern SemaphoreHandle_t xTempSemaphore;
 #endif
