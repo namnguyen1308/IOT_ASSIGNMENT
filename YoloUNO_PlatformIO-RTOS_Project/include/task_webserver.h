@@ -11,7 +11,7 @@
 
 extern AsyncWebServer server;
 extern AsyncWebSocket ws;
-extern bool webserver_isrunning = false;
+extern bool webserver_isrunning;
 
 void Webserver_send_sensor_data(float temperature, float humidity);
 void Webserver_stop();
