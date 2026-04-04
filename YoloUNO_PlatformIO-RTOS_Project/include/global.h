@@ -6,6 +6,15 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
+typedef enum {
+    STATE_NOMAL = 0,
+    STATE_WARNING,
+    STATE_CRITIAL,
+    STATE_ERROR,
+    HUMIDITY_LOW_THRESHOLD = 40,
+    HUMIDITY_OPTIMAL_THRESHOLD = 70
+} SensorState_t;
+
 typedef struct {
     float temperature;
     float humidity;
