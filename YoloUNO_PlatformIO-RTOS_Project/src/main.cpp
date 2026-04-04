@@ -57,6 +57,7 @@ void setup()
 
       
       xTaskCreate(led_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL); 
+      xTaskCreate(neo_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL);
       xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void *)sensorContext, 2, NULL); 
   }
   else {
