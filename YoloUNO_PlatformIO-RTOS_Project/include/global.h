@@ -20,7 +20,7 @@ typedef struct {
     float humidity;
     
     
-    uint8_t tempState; 
+    SensorState_t tempState; 
     
     SemaphoreHandle_t dataMutex;     // Mutex for protecting data 
     SemaphoreHandle_t semTempUpdate; // Semaphore for Task 1
