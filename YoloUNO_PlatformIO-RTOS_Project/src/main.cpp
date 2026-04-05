@@ -5,7 +5,7 @@
 #include "temp_humi_monitor.h"
 // #include "mainserver.h"
 // #include "tinyml.h"
-#include "coreiot.h"
+//#include "coreiot.h"
 
 // include task
 #include "task_check_info.h"
@@ -39,7 +39,7 @@ void setup()
  
   SensorContext_t *sensorContext = (SensorContext_t *)pvPortMalloc(sizeof(SensorContext_t));
 
-  // Sau khi khai báo xong ở trên thì mới có thể kiểm tra NULL ở dưới
+  
   if (sensorContext != NULL) {
       sensorContext->temperature = 0.0;
       sensorContext->humidity = 0.0;
@@ -49,14 +49,13 @@ void setup()
       //sensorContext->soilMoisture = 0;
       //sensorContext->soilState = 1; 
       
-    
+      
       sensorContext->dataMutex = xSemaphoreCreateMutex();
       sensorContext->semTempUpdate = xSemaphoreCreateBinary();
       sensorContext->semHumiUpdate = xSemaphoreCreateBinary();
       //sensorContext->semSoilUpdate = xSemaphoreCreateBinary();
 
       xTaskCreate(led_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL); 
-      xTaskCreate(neo_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL); 
       xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void *)sensorContext, 2, NULL); 
   }
   else {
@@ -65,7 +64,7 @@ void setup()
 
   // xTaskCreate(main_server_task, "Task Main Server" ,8192  ,NULL  ,2 , NULL);
   // xTaskCreate( tiny_ml_task, "Tiny ML Task" ,2048  ,NULL  ,2 , NULL);
-  // xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,(void *)sensorContext  ,2 , NULL);
+   xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,(void *)sensorContext  ,2 , NULL);
   // xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
   xTaskCreate(send_sensor_data_task, "Send Sensor Data", 2048, (void *)sensorContext, 1, NULL); //task 4
 }
