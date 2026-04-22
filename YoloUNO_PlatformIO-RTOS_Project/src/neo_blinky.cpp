@@ -37,20 +37,23 @@ void neo_blinky(void *pvParameters) {
     while(1) {
         // Wait for humidity semaphores with timeout
         // Check for LOW humidity (normal)
-        if (xSemaphoreTake(context->semHumiLow, pdMS_TO_TICKS(SEMAPHORE_TIMEOUT_MS)) == pdTRUE) {
-            newColorState = 0;  // Normal
-            Serial.println("NeoPixel: Normal humidity detected (0-40%)");
+        if (xSemaphoreTake(context->semHumiUpdate, portMAX_DELAY) == pdTRUE) {
+            if (context->humidity <= HUMIDITY_LOW_THRESHOLD) {
+                newColorState = 0;  // Normal
+                Serial.println("NeoPixel: Normal humidity detected (0-40%)");
+            }
+            // Check for OPTIMAL humidity
+            else if (context->humidity > HUMIDITY_LOW_THRESHOLD && context->humidity <= HUMIDITY_OPTIMAL_THRESHOLD) {
+                newColorState = 1;  // Optimal
+                Serial.println("NeoPixel: Optimal humidity detected (40-70%)");
+            }
+            // Check for HIGH humidity
+            else {
+                newColorState = 2;  // High
+                Serial.println("NeoPixel: High humidity detected (>70%)");
+            }
         }
-        // Check for OPTIMAL humidity
-        else if (xSemaphoreTake(context->semHumiOptimal, pdMS_TO_TICKS(SEMAPHORE_TIMEOUT_MS)) == pdTRUE) {
-            newColorState = 1;  // Optimal
-            Serial.println("NeoPixel: Optimal humidity detected (40-70%)");
-        }
-        // Check for HIGH humidity
-        else if (xSemaphoreTake(context->semHumiHigh, pdMS_TO_TICKS(SEMAPHORE_TIMEOUT_MS)) == pdTRUE) {
-            newColorState = 2;  // High
-            Serial.println("NeoPixel: High humidity detected (>70%)");
-        }
+    }
         
         // Also read actual humidity value for debugging
         if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
@@ -91,4 +94,3 @@ void neo_blinky(void *pvParameters) {
         // Small delay to prevent task from hogging CPU
         vTaskDelay(pdMS_TO_TICKS(50));
     }
-}
