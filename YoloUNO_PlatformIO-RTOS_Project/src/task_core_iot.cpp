@@ -124,40 +124,44 @@ void CORE_IOT_reconnect()
 }
 
 void coreiot_task(void *pvParameters) {
-    
     SensorContext_t *context = (SensorContext_t *)pvParameters;
 
+  
+    Serial.println("Task 6: Đang chờ tín hiệu Internet...");
     while(1) {
-        // 1. Check connect
+     
+        if (xSemaphoreTake(xBinarySemaphoreInternet, portMAX_DELAY) == pdTRUE) {
+        
+            xSemaphoreGive(xBinarySemaphoreInternet); 
+            break; 
+        }
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    Serial.println("Wifi is connected.");
+    // ==============================================================
+
+   
+    while (1) {
         if (!tb.connected()) {
-            Serial.println("Đang kết nối tới CoreIOT...");
+            Serial.println("CoreIOT: Reconnected...");
             CORE_IOT_reconnect(); 
-        } 
-        else {
-          
-            tb.loop();
+        } else {
+            tb.loop(); 
 
-           
-            float temp = 0.0, humi = 0.0;
-            //int soil = 0;
+            float t = 0.0, h = 0.0;
 
-            
             if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
-                temp = context->temperature;
-                humi = context->humidity;
-                //soil = context->soilMoisture;
+                t = context->temperature;
+                h = context->humidity;
                 xSemaphoreGive(context->dataMutex); 
             }
 
-            
-            tb.sendTelemetryData("temperature", temp);
-            tb.sendTelemetryData("humidity", humi);
-            //tb.sendTelemetryData("soilMoisture", soil);
+            tb.sendTelemetryData("temperature", t);
+            tb.sendTelemetryData("humidity", h);
 
-            Serial.printf("CoreIOT Publish -> T: %.1f, H: %.1f, Soil: %d\n", temp, humi);
+            Serial.printf("Cloud Sync -> Temp: %.1f°C, Humi: %.1f%%\n", t, h);
         }
 
-        // Delay 5 giây rồi mới gửi tiếp (tránh spam làm nghẽn server)
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(10000));
     }
 }
