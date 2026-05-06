@@ -26,7 +26,7 @@ void setup()
   if (sensorContext != NULL) {
       sensorContext->temperature = 0.0;
       sensorContext->humidity = 0.0;
-      sensorContext->tempState = 0; 
+      sensorContext->tempState = STATE_NOMAL; 
       
       
       //sensorContext->soilMoisture = 0;
@@ -41,6 +41,7 @@ void setup()
       
       xTaskCreate(led_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL); 
       xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void *)sensorContext, 2, NULL); 
+      xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,(void *)sensorContext  ,2 , NULL);
   }
   else {
       Serial.println("Error: Không thể cấp phát bộ nhớ cho SensorContext!");
@@ -48,7 +49,7 @@ void setup()
 
   // xTaskCreate(main_server_task, "Task Main Server" ,8192  ,NULL  ,2 , NULL);
   // xTaskCreate( tiny_ml_task, "Tiny ML Task" ,2048  ,NULL  ,2 , NULL);
-  // xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,(void *)sensorContext  ,2 , NULL);
+  
   // xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
 }
 
@@ -58,12 +59,12 @@ void loop()
   {
     if (!Wifi_reconnect())
     {
-      Webserver_stop();
+      // Webserver_stop();
     }
     else
     {
-      //CORE_IOT_reconnect();
+      CORE_IOT_reconnect();
     }
   }
-  Webserver_reconnect();
+  // Webserver_reconnect();
 }
