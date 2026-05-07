@@ -13,7 +13,7 @@ LOCAL_BIND_PORT = 1883
 # CoreIoT/ThingsBoard gateway config
 THINGSBOARD_HOST = "app.coreiot.io"
 THINGSBOARD_PORT = 1883
-GATEWAY_ACCESS_TOKEN = "tgTuRMAFIDuBL4cp7HgA"
+GATEWAY_ACCESS_TOKEN = "..."
 
 LOCAL_TELEMETRY_TOPIC = "local/devices/+/telemetry"
 LOCAL_ATTRIBUTES_TOPIC = "local/devices/+/attributes"
