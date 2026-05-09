@@ -180,3 +180,77 @@ document.getElementById("settingsForm").addEventListener("submit", function (e) 
     Send_Data(settingsJSON);
     alert("✅ Cấu hình đã được gửi đến thiết bị!");
 });
+
+let led1State = false;
+let led2State = false;
+
+function toggleLED(device) {
+
+  // =========================
+  // DEVICE 1
+  // =========================
+  if (device === 1) {
+
+    led1State = !led1State;
+
+    const btn = document.getElementById("btnLed1");
+    const status = document.getElementById("status1");
+
+    if (led1State) {
+
+      btn.innerHTML = "Turn OFF";
+      btn.classList.add("on");
+
+      status.innerHTML = "Status: ON";
+      status.classList.remove("status-off");
+      status.classList.add("status-on");
+
+      fetch("/led1/on");
+
+    } else {
+
+      btn.innerHTML = "Turn ON";
+      btn.classList.remove("on");
+
+      status.innerHTML = "Status: OFF";
+      status.classList.remove("status-on");
+      status.classList.add("status-off");
+
+      fetch("/led1/off");
+    }
+  }
+
+  // =========================
+  // DEVICE 2
+  // =========================
+  else if (device === 2) {
+
+    led2State = !led2State;
+
+    const btn = document.getElementById("btnLed2");
+    const status = document.getElementById("status2");
+
+    if (led2State) {
+
+      btn.innerHTML = "Turn OFF";
+      btn.classList.add("on");
+
+      status.innerHTML = "Status: ON";
+      status.classList.remove("status-off");
+      status.classList.add("status-on");
+
+      fetch("/led2/on");
+
+    } else {
+
+      btn.innerHTML = "Turn ON";
+      btn.classList.remove("on");
+
+      status.innerHTML = "Status: OFF";
+      status.classList.remove("status-on");
+      status.classList.add("status-off");
+
+      fetch("/led2/off");
+    }
+  }
+}
