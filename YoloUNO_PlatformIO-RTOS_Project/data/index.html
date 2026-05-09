@@ -55,17 +55,54 @@
     </div>
 
     <!-- THIẾT BỊ -->
-    <div id="device" class="section" style="display:none;">
-      <header>
-        <h1>Điều khiển Relay</h1>
-        <p>Quản lý và điều khiển các relay được kết nối.</p>
-      </header>
+    <div id="devicesPage" class="page">
 
-      <div class="device-list" id="relayContainer"></div>
-
-      <button class="add-relay-btn" onclick="openAddRelayDialog()">
-        <i class="fa-solid fa-plus"></i>
-      </button>
+      <h1>Device Control Panel</h1>
+    
+      <div class="device-list">
+    
+        <!-- DEVICE 1 -->
+        <div class="device-card">
+    
+          <i class="fas fa-lightbulb device-icon"></i>
+    
+          <h2>LED 1</h2>
+          <p>Main Room Light</p>
+    
+          <p id="status1" class="status-off">
+            Status: OFF
+          </p>
+    
+          <button id="btnLed1"
+                  class="toggle-btn"
+                  onclick="toggleLED(1)">
+            Turn ON
+          </button>
+    
+        </div>
+    
+        <!-- DEVICE 2 -->
+        <div class="device-card">
+    
+          <i class="fas fa-fan device-icon"></i>
+    
+          <h2>LED 2</h2>
+          <p>Cooling Fan</p>
+    
+          <p id="status2" class="status-off">
+            Status: OFF
+          </p>
+    
+          <button id="btnLed2"
+                  class="toggle-btn"
+                  onclick="toggleLED(2)">
+            Turn ON
+          </button>
+    
+        </div>
+    
+      </div>
+    
     </div>
 
     <!-- THÔNG TIN -->
