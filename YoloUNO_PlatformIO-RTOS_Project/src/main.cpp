@@ -14,23 +14,6 @@
 #include "task_webserver.h"
 #include "task_core_iot.h"
 
-void send_sensor_data_task(void *pvParameters) {
-    SensorContext_t *context = (SensorContext_t *)pvParameters;
-    
-    while(1) {
-        if (webserver_isrunning) {
-            float temp = 0.0, hum = 0.0;
-            if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
-                temp = context->temperature;
-                hum = context->humidity;
-                xSemaphoreGive(context->dataMutex);
-            }
-            Webserver_send_sensor_data(temp, hum);
-        }
-        vTaskDelay(pdMS_TO_TICKS(3000));  // Send every 3 seconds
-    }
-}
-
 void setup()
 {
   Serial.begin(115200);
@@ -39,11 +22,17 @@ void setup()
   xTaskCreate(led_blinky, "Task LED Blink", 2048, NULL, 2, NULL);
   xTaskCreate(neo_blinky, "Task NEO Blink", 2048, NULL, 2, NULL);
   xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, NULL, 2, NULL);
-  // xTaskCreate(main_server_task, "Task Main Server" ,8192  ,NULL  ,2 , NULL);
+  xTaskCreate(
+    WebserverTask,     // Task function
+    "WebServerTask",   // Name
+    12288,              // Stack size (ESP32 webserver needs big stack)
+    NULL,              // Parameters
+    1,                 // Priority
+    NULL               // Task handle (optional)
+);
   // xTaskCreate( tiny_ml_task, "Tiny ML Task" ,2048  ,NULL  ,2 , NULL);
   xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,NULL  ,2 , NULL);
   // xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
-  xTaskCreate(send_sensor_data_task, "Send Sensor Data", 2048, (void *)sensorContext, 1, NULL); //task 4
 }
 
 void loop()
