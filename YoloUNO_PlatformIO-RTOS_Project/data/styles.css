@@ -339,6 +339,27 @@ body {
   color     : #333;
 }
 
+/* =========================
+   DEVICE STATUS COLORS
+========================= */
+
+.status-on {
+  color: limegreen;
+  font-weight: bold;
+}
+
+.status-off {
+  color: red;
+  font-weight: bold;
+}
+
+/* =========================
+   BUTTON HOVER EFFECT
+========================= */
+
+.toggle-btn:hover {
+  transform: scale(1.03);
+}
 @keyframes popIn {
   from {
     transform: scale(0.8);
