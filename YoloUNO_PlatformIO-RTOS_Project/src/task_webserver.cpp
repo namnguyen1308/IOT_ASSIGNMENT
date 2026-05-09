@@ -1,5 +1,8 @@
 #include "task_webserver.h"
 
+#define LED1 2
+#define LED2 4
+
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
