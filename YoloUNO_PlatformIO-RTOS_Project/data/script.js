@@ -2,255 +2,251 @@
 var gateway = `ws://${window.location.hostname}/ws`;
 var websocket;
 
-window.addEventListener('load', onLoad);
+// Device state store
+var devices = {
+  LED1: { state: false, gpio: 2,  name: "LED 1", desc: "Status Indicator" },
+  LED2: { state: false, gpio: 4,  name: "LED 2", desc: "Alert Indicator"  }
+};
 
-function onLoad(event) {
-    initWebSocket();
-}
-
-function onOpen(event) {
-    console.log('Connection opened');
-}
-
-function onClose(event) {
-    console.log('Connection closed');
-    setTimeout(initWebSocket, 2000);
-}
+window.addEventListener('load', () => {
+  initWebSocket();
+});
 
 function initWebSocket() {
-    console.log('Trying to open a WebSocket connection…');
-    websocket = new WebSocket(gateway);
-    websocket.onopen = onOpen;
-    websocket.onclose = onClose;
-    websocket.onmessage = onMessage;
+  console.log('Opening WebSocket…');
+  websocket = new WebSocket(gateway);
+  websocket.onopen    = onOpen;
+  websocket.onclose   = onClose;
+  websocket.onmessage = onMessage;
+}
+
+function onOpen() {
+  console.log('WS connected');
+  setWsStatus(true);
+}
+
+function onClose() {
+  console.log('WS disconnected – retrying in 2 s');
+  setWsStatus(false);
+  setTimeout(initWebSocket, 2000);
+}
+
+function setWsStatus(connected) {
+  const dot   = document.getElementById('wsDot');
+  const label = document.getElementById('wsLabel');
+  dot.className   = 'ws-dot ' + (connected ? 'connected' : 'disconnected');
+  label.textContent = connected ? 'Connected' : 'Disconnected';
 }
 
 function Send_Data(data) {
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-        websocket.send(data);
-        console.log("📤 Gửi:", data);
-    } else {
-        console.warn("⚠️ WebSocket chưa sẵn sàng!");
-        alert("⚠️ WebSocket chưa kết nối!");
-    }
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    websocket.send(data);
+    console.log('📤 Sent:', data);
+  } else {
+    console.warn('WS not ready');
+    showToast('⚠️ WebSocket not connected');
+  }
 }
 
+/**
+ * onMessage – handles incoming JSON from ESP32
+ * Expected payloads:
+ *   { "page": "sensor",  "value": { "temp": 26.5, "humi": 62 } }
+ *   { "page": "device",  "value": { "name": "LED1", "status": "ON" } }
+ */
 function onMessage(event) {
-    console.log("📩 Nhận:", event.data);
-    try {
-        var data = JSON.parse(event.data);
-        // Có thể thêm xử lý riêng nếu cần (ví dụ cập nhật trạng thái)
-    } catch (e) {
-        console.warn("Không phải JSON hợp lệ:", event.data);
+  console.log('📩 Received:', event.data);
+  try {
+    var data = JSON.parse(event.data);
+
+    if (data.page === 'sensor' && data.value) {
+      updateSensorUI(data.value.temp, data.value.humi);
     }
+
+    if (data.page === 'device' && data.value) {
+      var id = data.value.name;        // "LED1" or "LED2"
+      var st = data.value.status === 'ON';
+      if (devices[id] !== undefined) {
+        devices[id].state = st;
+        refreshDeviceCard(id);
+        refreshQuickBtn(id);
+      }
+    }
+
+  } catch (e) {
+    console.warn('Non-JSON message:', event.data);
+  }
 }
 
 
-// ==================== UI NAVIGATION ====================
-let relayList = [];
-let deleteTarget = null;
-
+// ==================== NAVIGATION ====================
 function showSection(id, event) {
-    document.querySelectorAll('.section').forEach(sec => sec.style.display = 'none');
-    document.getElementById(id).style.display = id === 'settings' ? 'flex' : 'block';
-    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  document.getElementById(id).style.display = 'block';
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  event.currentTarget.classList.add('active');
 }
 
 
-// ==================== HOME GAUGES ====================
-window.onload = function () {
-    const gaugeTemp = new JustGage({
-        id: "gauge_temp",
-        value: 26,
-        min: -10,
-        max: 50,
-        donut: true,
-        pointer: false,
-        gaugeWidthScale: 0.25,
-        gaugeColor: "transparent",
-        levelColorsGradient: true,
-        levelColors: ["#00BCD4", "#4CAF50", "#FFC107", "#F44336"]
-    });
-
-    const gaugeHumi = new JustGage({
-        id: "gauge_humi",
-        value: 60,
-        min: 0,
-        max: 100,
-        donut: true,
-        pointer: false,
-        gaugeWidthScale: 0.25,
-        gaugeColor: "transparent",
-        levelColorsGradient: true,
-        levelColors: ["#42A5F5", "#00BCD4", "#0288D1"]
-    });
-
-    setInterval(() => {
-        gaugeTemp.refresh(Math.floor(Math.random() * 15) + 20);
-        gaugeHumi.refresh(Math.floor(Math.random() * 40) + 40);
-    }, 3000);
-};
-
-
-// ==================== DEVICE FUNCTIONS ====================
-function openAddRelayDialog() {
-    document.getElementById('addRelayDialog').style.display = 'flex';
-}
-function closeAddRelayDialog() {
-    document.getElementById('addRelayDialog').style.display = 'none';
-}
-function saveRelay() {
-    const name = document.getElementById('relayName').value.trim();
-    const gpio = document.getElementById('relayGPIO').value.trim();
-    if (!name || !gpio) return alert("⚠️ Please fill all fields!");
-    relayList.push({ id: Date.now(), name, gpio, state: false });
-    renderRelays();
-    closeAddRelayDialog();
-}
-function renderRelays() {
-    const container = document.getElementById('relayContainer');
-    container.innerHTML = "";
-    relayList.forEach(r => {
-        const card = document.createElement('div');
-        card.className = 'device-card';
-        card.innerHTML = `
-      <i class="fa-solid fa-bolt device-icon"></i>
-      <h3>${r.name}</h3>
-      <p>GPIO: ${r.gpio}</p>
-      <button class="toggle-btn ${r.state ? 'on' : ''}" onclick="toggleRelay(${r.id})">
-        ${r.state ? 'ON' : 'OFF'}
-      </button>
-      <i class="fa-solid fa-trash delete-icon" onclick="showDeleteDialog(${r.id})"></i>
-    `;
-        container.appendChild(card);
-    });
-}
-function toggleRelay(id) {
-    const relay = relayList.find(r => r.id === id);
-    if (relay) {
-        relay.state = !relay.state;
-        const relayJSON = JSON.stringify({
-            page: "device",
-            value: {
-                name: relay.name,
-                status: relay.state ? "ON" : "OFF",
-                gpio: relay.gpio
-            }
-        });
-        Send_Data(relayJSON);
-        renderRelays();
-    }
-}
-function showDeleteDialog(id) {
-    deleteTarget = id;
-    document.getElementById('confirmDeleteDialog').style.display = 'flex';
-}
-function closeConfirmDelete() {
-    document.getElementById('confirmDeleteDialog').style.display = 'none';
-}
-function confirmDelete() {
-    relayList = relayList.filter(r => r.id !== deleteTarget);
-    renderRelays();
-    closeConfirmDelete();
-}
-
-
-// ==================== SETTINGS FORM (BỔ SUNG) ====================
-document.getElementById("settingsForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-
-    const ssid = document.getElementById("ssid").value.trim();
-    const password = document.getElementById("password").value.trim();
-    const token = document.getElementById("token").value.trim();
-    const server = document.getElementById("server").value.trim();
-    const port = document.getElementById("port").value.trim();
-
-    const settingsJSON = JSON.stringify({
-        page: "setting",
-        value: {
-            ssid: ssid,
-            password: password,
-            token: token,
-            server: server,
-            port: port
-        }
-    });
-
-    Send_Data(settingsJSON);
-    alert("✅ Cấu hình đã được gửi đến thiết bị!");
-});
-
-let led1State = false;
-let led2State = false;
-
-function toggleLED(device) {
-
-  // =========================
-  // DEVICE 1
-  // =========================
-  if (device === 1) {
-
-    led1State = !led1State;
-
-    const btn = document.getElementById("btnLed1");
-    const status = document.getElementById("status1");
-
-    if (led1State) {
-
-      btn.innerHTML = "Turn OFF";
-      btn.classList.add("on");
-
-      status.innerHTML = "Status: ON";
-      status.classList.remove("status-off");
-      status.classList.add("status-on");
-
-      fetch("/led1/on");
-
-    } else {
-
-      btn.innerHTML = "Turn ON";
-      btn.classList.remove("on");
-
-      status.innerHTML = "Status: OFF";
-      status.classList.remove("status-on");
-      status.classList.add("status-off");
-
-      fetch("/led1/off");
-    }
+// ==================== SENSOR UI ====================
+function updateSensorUI(temp, humi) {
+  if (temp !== undefined && temp !== null) {
+    document.getElementById('tempValue').textContent = parseFloat(temp).toFixed(1);
+    // Bar: map -10…50 → 0…100%
+    var pct = Math.min(100, Math.max(0, ((temp + 10) / 60) * 100));
+    document.getElementById('tempBar').style.width = pct + '%';
+    var status = temp >= 35 ? '🔴 Critical' : temp >= 28 ? '🟡 Warning' : '🟢 Normal';
+    document.getElementById('tempStatus').textContent = status;
   }
-
-  // =========================
-  // DEVICE 2
-  // =========================
-  else if (device === 2) {
-
-    led2State = !led2State;
-
-    const btn = document.getElementById("btnLed2");
-    const status = document.getElementById("status2");
-
-    if (led2State) {
-
-      btn.innerHTML = "Turn OFF";
-      btn.classList.add("on");
-
-      status.innerHTML = "Status: ON";
-      status.classList.remove("status-off");
-      status.classList.add("status-on");
-
-      fetch("/led2/on");
-
-    } else {
-
-      btn.innerHTML = "Turn ON";
-      btn.classList.remove("on");
-
-      status.innerHTML = "Status: OFF";
-      status.classList.remove("status-on");
-      status.classList.add("status-off");
-
-      fetch("/led2/off");
-    }
+  if (humi !== undefined && humi !== null) {
+    document.getElementById('humiValue').textContent = parseFloat(humi).toFixed(1);
+    document.getElementById('humiBar').style.width = Math.min(100, Math.max(0, humi)) + '%';
+    var hStatus = humi > 80 ? '🟡 High' : humi < 30 ? '🟡 Low' : '🟢 Comfortable';
+    document.getElementById('humiStatus').textContent = hStatus;
   }
+}
+
+
+// ==================== DEVICE CONTROL ====================
+
+/**
+ * Send a device command over WebSocket
+ * page: "device"
+ * value: { name, status, gpio }
+ */
+function sendDeviceCommand(id, status) {
+  var dev = devices[id];
+  var payload = JSON.stringify({
+    page: "device",
+    value: {
+      name:   id,
+      status: status,
+      gpio:   dev.gpio
+    }
+  });
+  Send_Data(payload);
+}
+
+/** Toggle a device ON/OFF */
+function toggleDevice(id) {
+  var dev = devices[id];
+  dev.state = !dev.state;
+  sendDeviceCommand(id, dev.state ? 'ON' : 'OFF');
+  refreshDeviceCard(id);
+  refreshQuickBtn(id);
+  showToast((dev.state ? '💡 ' : '🌑 ') + dev.name + ' turned ' + (dev.state ? 'ON' : 'OFF'));
+}
+
+/** Quick-toggle from dashboard card */
+function quickToggle(id) {
+  toggleDevice(id);
+}
+
+/** Blink command – turns ON then OFF after 500 ms (handled on ESP32 side) */
+function blinkDevice(id) {
+  var dev = devices[id];
+  var payload = JSON.stringify({
+    page: "device",
+    value: {
+      name:   id,
+      status: 'BLINK',
+      gpio:   dev.gpio
+    }
+  });
+  Send_Data(payload);
+  showToast('✨ Blink sent to ' + dev.name);
+}
+
+/** Bulk control */
+function bulkControl(status) {
+  Object.keys(devices).forEach(id => {
+    devices[id].state = (status === 'ON');
+    sendDeviceCommand(id, status);
+    refreshDeviceCard(id);
+    refreshQuickBtn(id);
+  });
+  showToast(status === 'ON' ? '💡 All devices ON' : '🌑 All devices OFF');
+}
+
+/** Refresh a device card DOM */
+function refreshDeviceCard(id) {
+  var dev = devices[id];
+  var btn   = document.getElementById('btn-' + id);
+  var ring  = document.getElementById('ring-' + id);
+  var label = document.getElementById('state-' + id);
+  if (!btn) return;
+
+  if (dev.state) {
+    btn.classList.add('on');
+    ring.classList.add('on');
+    label.textContent = 'ON';
+    label.classList.add('on');
+  } else {
+    btn.classList.remove('on');
+    ring.classList.remove('on');
+    label.textContent = 'OFF';
+    label.classList.remove('on');
+  }
+}
+
+/** Refresh quick-control buttons on Dashboard */
+function refreshQuickBtn(id) {
+  var btn = document.getElementById('q' + id); // qLed1, qLed2
+  if (!btn) return;
+  if (devices[id].state) {
+    btn.classList.add('on');
+  } else {
+    btn.classList.remove('on');
+  }
+}
+
+/** Device info modal */
+function deviceInfo(id) {
+  var dev = devices[id];
+  document.getElementById('modalTitle').textContent = dev.name + ' — Info';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-body-row"><span>ID</span><span>${id}</span></div>
+    <div class="modal-body-row"><span>GPIO</span><span>${dev.gpio}</span></div>
+    <div class="modal-body-row"><span>Description</span><span>${dev.desc}</span></div>
+    <div class="modal-body-row"><span>Current State</span><span>${dev.state ? 'ON' : 'OFF'}</span></div>
+  `;
+  document.getElementById('infoModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('infoModal').style.display = 'none';
+}
+
+
+// ==================== SETTINGS ====================
+function saveSettings() {
+  var ssid     = document.getElementById('ssid').value.trim();
+  var password = document.getElementById('password').value.trim();
+  var token    = document.getElementById('token').value.trim();
+  var server   = document.getElementById('server').value.trim();
+  var port     = document.getElementById('port').value.trim();
+
+  if (!ssid) { showToast('⚠️ SSID is required'); return; }
+
+  var payload = JSON.stringify({
+    page: "setting",
+    value: { ssid, password, token, server, port }
+  });
+  Send_Data(payload);
+
+  var fb = document.getElementById('saveFeedback');
+  fb.textContent = '✓ Saved & sent to device';
+  fb.classList.add('show');
+  setTimeout(() => fb.classList.remove('show'), 3000);
+}
+
+
+// ==================== TOAST ====================
+var _toastTimer;
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
