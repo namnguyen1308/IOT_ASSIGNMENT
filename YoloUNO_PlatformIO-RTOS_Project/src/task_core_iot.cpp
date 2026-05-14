@@ -1,6 +1,10 @@
 
 #include "task_core_iot.h"
 
+const char* coreIOT_Server = "10.235.76.226";  
+const char* coreIOT_Token = "OSs7LTKUBEBiwSRZNN8m";   // Device Access Token
+const int   mqttPort = 1883;
+
 constexpr uint32_t MAX_MESSAGE_SIZE = 1024U;
 
 WiFiClient wifiClient;
@@ -116,5 +120,48 @@ void CORE_IOT_reconnect()
     else if (tb.connected())
     {
         tb.loop();
+    }
+}
+
+void coreiot_task(void *pvParameters) {
+    SensorContext_t *context = (SensorContext_t *)pvParameters;
+
+  
+    Serial.println("Task 6: Đang chờ tín hiệu Internet...");
+    while(1) {
+     
+        if (xSemaphoreTake(xBinarySemaphoreInternet, portMAX_DELAY) == pdTRUE) {
+        
+            xSemaphoreGive(xBinarySemaphoreInternet); 
+            break; 
+        }
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    Serial.println("Wifi is connected.");
+    // ==============================================================
+
+   
+    while (1) {
+        if (!tb.connected()) {
+            Serial.println("CoreIOT: Reconnected...");
+            CORE_IOT_reconnect(); 
+        } else {
+            tb.loop(); 
+
+            float t = 0.0, h = 0.0;
+
+            if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
+                t = context->temperature;
+                h = context->humidity;
+                xSemaphoreGive(context->dataMutex); 
+            }
+
+            tb.sendTelemetryData("temperature", t);
+            tb.sendTelemetryData("humidity", h);
+
+            Serial.printf("Cloud Sync -> Temp: %.1f°C, Humi: %.1f%%\n", t, h);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(10000));
     }
 }

@@ -5,7 +5,7 @@
 #include "temp_humi_monitor.h"
 // #include "mainserver.h"
 // #include "tinyml.h"
-#include "coreiot.h"
+//#include "coreiot.h"
 
 // include task
 #include "task_check_info.h"
@@ -30,8 +30,35 @@ void setup()
     1,                 // Priority
     NULL               // Task handle (optional)
 );
+ 
+  SensorContext_t *sensorContext = (SensorContext_t *)pvPortMalloc(sizeof(SensorContext_t));
+
+  
+  if (sensorContext != NULL) {
+      sensorContext->temperature = 0.0;
+      sensorContext->humidity = 0.0;
+      sensorContext->tempState = 0; 
+      
+      
+      //sensorContext->soilMoisture = 0;
+      //sensorContext->soilState = 1; 
+      
+      
+      sensorContext->dataMutex = xSemaphoreCreateMutex();
+      sensorContext->semTempUpdate = xSemaphoreCreateBinary();
+      sensorContext->semHumiUpdate = xSemaphoreCreateBinary();
+      //sensorContext->semSoilUpdate = xSemaphoreCreateBinary();
+
+      xTaskCreate(led_blinky, "Task LED Blink", 2048, (void *)sensorContext, 2, NULL); 
+      xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void *)sensorContext, 2, NULL); 
+  }
+  else {
+      Serial.println("Error: Không thể cấp phát bộ nhớ cho SensorContext!");
+  }
+
+  // xTaskCreate(main_server_task, "Task Main Server" ,8192  ,NULL  ,2 , NULL);
   // xTaskCreate( tiny_ml_task, "Tiny ML Task" ,2048  ,NULL  ,2 , NULL);
-  xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,NULL  ,2 , NULL);
+   xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,(void *)sensorContext  ,2 , NULL);
   // xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
 }
 
