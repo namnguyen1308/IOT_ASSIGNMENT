@@ -19,12 +19,12 @@ void led_blinky(void *pvParameters){
         xDelayTime = 500;
       }
       else if(context->tempState == STATE_NOMAL){
-        xDelayTime = 2000;
+        xDelayTime = 1000;
       }
       digitalWrite(LED_GPIO, HIGH);
-      vTaskDelay(xDelayTime);
+      vTaskDelay(pdMS_TO_TICKS(xDelayTime));
       digitalWrite(LED_GPIO, LOW);
-      vTaskDelay(xDelayTime);
+      vTaskDelay(pdMS_TO_TICKS(xDelayTime));
     }
 
     

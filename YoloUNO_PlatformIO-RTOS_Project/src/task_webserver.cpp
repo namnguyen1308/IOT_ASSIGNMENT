@@ -54,7 +54,7 @@ void Webserver_sendDeviceState(const String &name, bool state, int gpio)
 // ──────────────────────────────────────────────
 //  Handle WebSocket messages from the browser
 // ──────────────────────────────────────────────
-void handleWebSocketMessage(const String &message)
+void handleWebSocketMessage(const String & message)
 {
     Serial.println("📩 WS received: " + message);
 
