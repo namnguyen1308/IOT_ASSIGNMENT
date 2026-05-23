@@ -57,14 +57,16 @@ void temp_humi_monitor(void *pvParameters){
 
    
         // include the data in struct 
-        xSemaphoreGive(context->semTempUpdate); 
+        
 
+        // In ra Serial
         Serial.print("Humidity: ");
         Serial.print(humidity);
         Serial.print("%  Temperature: ");
         Serial.print(temperature);
         Serial.println("°C");
-        
+
+        xSemaphoreGive(context->semTempUpdate); 
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }

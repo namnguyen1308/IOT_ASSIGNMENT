@@ -1,6 +1,10 @@
 
 #include "task_core_iot.h"
 
+const char* coreIOT_Server = "10.235.76.226";  
+const char* coreIOT_Token = "OSs7LTKUBEBiwSRZNN8m";   // Device Access Token
+const int   mqttPort = 1883;
+
 constexpr uint32_t MAX_MESSAGE_SIZE = 1024U;
 
 WiFiClient wifiClient;
@@ -119,44 +123,45 @@ void CORE_IOT_reconnect()
     }
 }
 
-void coreiot_task(void *pvParameters)
-{
-    // Lấy context chứa Mutex và dữ liệu từ Task 3
+void coreiot_task(void *pvParameters) {
     SensorContext_t *context = (SensorContext_t *)pvParameters;
 
-    while (1)
-    {
-        // Đảm bảo thiết bị đã kết nối WiFi (STA mode)
-        if (WiFi.status() == WL_CONNECTED) 
-        {
-            // 1. Duy trì kết nối MQTT với CoreIOT
-            CORE_IOT_reconnect();
+  
+    Serial.println("Task 6: Đang chờ tín hiệu Internet...");
+    while(1) {
+     
+        if (xSemaphoreTake(xBinarySemaphoreInternet, portMAX_DELAY) == pdTRUE) {
+        
+            xSemaphoreGive(xBinarySemaphoreInternet); 
+            break; 
+        }
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    Serial.println("Wifi is connected.");
+    // ==============================================================
 
-            if (tb.connected()) 
-            {
-                float currentTemp = 0.0;
-                float currentHumi = 0.0;
+   
+    while (1) {
+        if (!tb.connected()) {
+            Serial.println("CoreIOT: Reconnected...");
+            CORE_IOT_reconnect(); 
+        } else {
+            tb.loop(); 
 
-                // 2. Đọc dữ liệu an toàn qua Mutex
-                if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
-                    currentTemp = context->temperature;
-                    currentHumi = context->humidity;
-                    xSemaphoreGive(context->dataMutex);
-                }
+            float t = 0.0, h = 0.0;
 
-                // 3. Publish dữ liệu lên server
-                CORE_IOT_sendata("telemetry", "temperature", String(currentTemp, 1));
-                CORE_IOT_sendata("telemetry", "humidity", String(currentHumi, 1));
-                
-                Serial.printf("Published - Temp: %.1fC, Humi: %.1f%%\n", currentTemp, currentHumi);
+            if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE) {
+                t = context->temperature;
+                h = context->humidity;
+                xSemaphoreGive(context->dataMutex); 
             }
-        }
-        else 
-        {
-            Serial.println("WiFi not connected. Waiting to publish...");
+
+            tb.sendTelemetryData("temperature", t);
+            tb.sendTelemetryData("humidity", h);
+
+            Serial.printf("Cloud Sync -> Temp: %.1f°C, Humi: %.1f%%\n", t, h);
         }
 
-        // Chờ 10 giây trước khi gửi tiếp (tránh spam server)
-        vTaskDelay(pdMS_TO_TICKS(telemetrySendInterval));
+        vTaskDelay(pdMS_TO_TICKS(10000));
     }
 }

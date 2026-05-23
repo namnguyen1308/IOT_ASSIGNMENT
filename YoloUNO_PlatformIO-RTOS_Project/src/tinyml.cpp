@@ -44,7 +44,6 @@ void tiny_ml_task(void *pvParameters)
 {
     SensorContext_t *context = (SensorContext_t *)pvParameters;
 
-    Serial.println("[TinyML] Task started. Waiting for sensor data...");
 
     while (1)
     {
@@ -55,26 +54,18 @@ void tiny_ml_task(void *pvParameters)
             float humidity    = 0.0f;
 
             // Lấy dữ liệu an toàn qua mutex
-            if (xSemaphoreTake(context->dataMutex, pdMS_TO_TICKS(500)) == pdTRUE)
+            if (xSemaphoreTake(context->dataMutex, portMAX_DELAY) == pdTRUE)
             {
                 temperature = context->temperature;
                 humidity    = context->humidity;
                 xSemaphoreGive(context->dataMutex);
             }
-            else
-            {
-                Serial.println("[TinyML] Could not acquire dataMutex, skipping.");
-                continue;
-            }
+            
 
-            // ---- Xây dựng vector feature ----
-            //
-            // outdoor_temp: không có cảm biến ngoài → dùng chính temperature
-            // temp_outdoor_diff = temp - outdoor_temp = 0
             double outdoor_temp     = (double)temperature;
             double temp_outdoor_diff = (double)(temperature - outdoor_temp);
 
-            double input[N_FEATURES] = {
+            static double input[N_FEATURES] = {
                 (double)temperature,      // [0] temp
                 (double)humidity,         // [1] humidity
                 DEFAULT_VELOCITY,         // [2] velocity
@@ -89,7 +80,7 @@ void tiny_ml_task(void *pvParameters)
             };
 
             // ---- Chạy inference với model Random Forest ----
-            double output[N_CLASSES] = {0.0, 0.0, 0.0};
+            static double output[N_CLASSES] = {0.0, 0.0, 0.0};
             score(input, output);
 
             // ---- Chọn class có xác suất cao nhất ----

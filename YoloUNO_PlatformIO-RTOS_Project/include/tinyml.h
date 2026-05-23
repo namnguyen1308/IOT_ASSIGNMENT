@@ -5,7 +5,10 @@
 
 #include "global.h"
 
-#include "../ML/TinyML_RF.h"
+extern "C" {
+    // Khai báo tên hàm mặc định mà m2cgen sinh ra để C++ biết đường gọi
+    void score(double * input, double * output); 
+}
 
 void tiny_ml_task(void *pvParameters);
 

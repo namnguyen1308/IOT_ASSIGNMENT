@@ -5,5 +5,5 @@
 #include <ArduinoJson.h>
 #include <task_check_info.h>
 
-extern void handleWebSocketMessage(String message);
+extern void handleWebSocketMessage(const String &message);
 #endif

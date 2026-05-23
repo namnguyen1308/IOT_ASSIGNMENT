@@ -10,7 +10,9 @@ typedef enum {
     STATE_NOMAL = 0,
     STATE_WARNING,
     STATE_CRITIAL,
-    STATE_ERROR
+    STATE_ERROR,
+    HUMIDITY_LOW_THRESHOLD = 40,
+    HUMIDITY_OPTIMAL_THRESHOLD = 70
 } SensorState_t;
 
 typedef struct {
@@ -27,6 +29,9 @@ typedef struct {
     uint8_t humiState;
     SemaphoreHandle_t semHumiUpdate; 
 } SensorContext_t;
+
+extern float glob_temperature;
+extern float glob_humidity;
 
 extern String WIFI_SSID;
 extern String WIFI_PASS;
